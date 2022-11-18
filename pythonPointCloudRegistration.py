@@ -379,8 +379,8 @@ while True:
 		print("colorsRGB: " + str(colorsRGB.shape))
 		idx = np.zeros(len(verts))
 		#print()
-		w = color_image.shape[0] #480
-		h = color_image.shape[1] #640
+		w = color_image.shape[1] #480
+		h = color_image.shape[0] #640
 		print("w: " + str(w))
 		print("h: " + str(h))
 		color_array = color_image.flatten()/255
@@ -409,7 +409,7 @@ while True:
 			#print(idx) #921620
 			
 			#colorsRGB[i] = [color_array[idx], color_array[idx + 1], color_array[idx + 2]]
-			colorsRGB[i] = color_image[x][y]
+			colorsRGB[i] = color_image[y][x]
 			#print("coordX: " + str(coordX))
 			#print("coordY: " + str(coordY))
 			#colorLocation = int(coordY * color_image.shape[1] + coordX)
