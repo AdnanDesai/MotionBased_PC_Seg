@@ -306,6 +306,10 @@ while True:
 
 		depth_frame = frames.get_depth_frame()
 		color_frame = frames.get_color_frame()
+		
+		print("color_frame")
+		print(type(color_frame))
+		print(dir(color_frame))
 
 		depth_frame = decimate.process(depth_frame)
 
@@ -332,10 +336,112 @@ while True:
 		verts = np.asanyarray(v).view(np.float32).reshape(-1, 3)  # xyz
 		texcoords = np.asanyarray(t).view(np.float32).reshape(-1, 2)  # uv
 		
-		for i, j in enumerate(verts):
+		print("verticies")
+		print(verts.shape)
+		
+		print("color_image")
+		print(color_image.shape)
+		#print(color_image)
+		
+		print("color_source")
+		print(color_source.shape)
+		
+		print("points")
+		print(points.size())
+		
+		print("depth_colormap")
+		print(depth_colormap.shape)
+		
+		print("state.color")
+		print(state.color)
+		
+		print("color_frame")
+		print(color_frame)
+		
+		print("depth_image")
+		print(depth_image.shape)
+		
+		print("color_image")
+		print(color_image.shape)
+		print(color_image[0][0])
+		
+		print("texcoords")
+		print(texcoords.shape)
+		#for t in texcoords:
+		#	print(texcoords.argmax())
+		#	print(texcoords.argmin())
+		#	print(texcoords.flatten()[texcoords.argmin()])
+		#	print(texcoords.flatten()[texcoords.argmax()])
+		#	print("texcoord: " + str(t))
+		
+		#ok, so color_image looks suspiciously like a numpy array cast of the color frame which seems to contain the texture data. I'm going to try and normalize the texture coordinates to work with it and see where that goes. https://github.com/IntelRealSense/librealsense/issues/6234 this maps from texture coordinates to color frame
+		colorsRGB = np.zeros((len(texcoords), 3))
+		print("colorsRGB: " + str(colorsRGB.shape))
+		idx = np.zeros(len(verts))
+		#print()
+		w = color_image.shape[0] #480
+		h = color_image.shape[1] #640
+		print("w: " + str(w))
+		print("h: " + str(h))
+		color_array = color_image.flatten()/255
+		color_image = color_image/255
+		print("color_array length: " + str(len(color_array)))
+		for i, t in enumerate(verts):
+			#coordX = np.rint(t[0] * color_image.shape[0])
+			#coordY = np.rint(t[1] * color_image.shape[1])
+			#colorLocation = int(coordY * color_image.shape[1] + coordX)
+			#colorsRGB[i] = [int(color_image.flatten()[colorLocation]), int(color_image.flatten()[colorLocation + 1]), int(color_image.flatten()[colorLocation + 2])]
+			
+			#print("texcoords x: " + str(texcoords[i][0]))
+			#print("texcoords y: " + str(texcoords[i][1]))
+			#print("texcoords: " + str(texcoords[i]))
+			
+			x = min(max(int(texcoords[i][0]*w + 0.5),0),w - 1)
+			#print("x: " + str(x))
+			y = min(max(int(texcoords[i][1]*h + 0.5),0),h - 1)
+			#print("y: " + str(y))
+			#print("bytes per pixel: " + str(color_frame.get_bytes_per_pixel()))
+			#print("stride in bytes: " + str(color_frame.get_stride_in_bytes()))
+			#idx = int(x * color_frame.get_bytes_per_pixel() / 8 + y * color_frame.get_stride_in_bytes())
+			#idx = int(x + y*w + i * 3)
+			#idx = x + y * w
+			#idx = x + y
+			#print(idx) #921620
+			
+			#colorsRGB[i] = [color_array[idx], color_array[idx + 1], color_array[idx + 2]]
+			colorsRGB[i] = color_image[x][y]
+			#print("coordX: " + str(coordX))
+			#print("coordY: " + str(coordY))
+			#colorLocation = int(coordY * color_image.shape[1] + coordX)
+			#print("colorLocation: " + str(colorLocation))
+			#print([color_image.flatten()[colorLocation], color_image.flatten()[colorLocation + 1], color_image.flatten()[colorLocation + 2]])
+			
+			#colorsRGB[i] = [int(color_image.flatten()[colorLocation]), int(color_image.flatten()[colorLocation + 1]), int(color_image.flatten()[colorLocation + 2])]
+			#print(colorsRGB[i])
+			#colorsRGB[i] = [0.5, 0.5, 0.5]
+			
+			#print(i)
+			#colorsRGB = np.concatenate(([color_image.flatten()[colorLocation], color_image.flatten()[colorLocation + 1], color_image.flatten()[colorLocation + 2]], colorsRGB))
+			#np.concatenate([color_image.flatten()[colorLocation], color_image.flatten()[colorLocation + 1], color_image.flatten()[colorLocation + 2]], colorsRGB)
+		#print("idx max: " + str(idx.max())) #1227059
+		#print("idx max indicy? " + str(idx[int(idx.max())]))
+		print("i: " + str(i))
+		print("colorRGB shape:")
+		print(colorsRGB.shape)
+		print(colorsRGB[i])
+		print("color_array max: " + str(color_array.max()))
+		print("color_array min: " + str(color_array.min()))
+		print("color_array mean: " + str(color_array.mean()))
+		print("texcoords.shape:")
+		print(texcoords.shape)
+		
+		
+		#mapped frame looks to be the texture based on
+		
+		#for i, j in enumerate(verts):
 			#print("yo")
-			print(color_source.shape)
-			print(color_source)
+		#	print(color_source.shape)
+		#	print(color_source)
 		#	print(texcoords[i])
 		#	print(texcoords[i][0])
 		#	print(texcoords[i][1])
@@ -366,11 +472,11 @@ while True:
 		#print(color_source[10][10])
 		
 		#I'm just going to test saving as .ply then loading back in to o3d
-		points.export_to_ply('./Test.ply', mapped_frame)
-		input_file = "Test.ply"
-		pcdTest = o3d.io.read_point_cloud(input_file) # Read the point cloud
+		#points.export_to_ply('./Test.ply', mapped_frame)
+		#input_file = "Test.ply"
+		#pcdTest = o3d.io.read_point_cloud(input_file) # Read the point cloud
 		
-		points.get_texcolor()
+		#points.get_texcolor()
 		
 		#verts = np.asarray(pcdTest.points)
 		#colorsTest = np.asarray(pcdTest.colors)
@@ -380,9 +486,13 @@ while True:
 
 	#add prior verts to current verts
 	#if priorVerts.any():
-	if notFirstIteration:
+	
+	pcd.points = o3d.utility.Vector3dVector(verts)
+	pcd.colors = o3d.utility.Vector3dVector(colorsRGB)
+	
+	#if notFirstIteration:
 		#pcd.points = o3d.utility.Vector3dVector(verts)
-		#pcd.colors = o3d.utility.Vector3dVector(colorsTest)
+		#pcd.colors = o3d.utility.Vector3dVector(colorsRGB)
 		#pcdPrior.points = o3d.utility.Vector3dVector(priorVerts)
 		#pcdPrior.colors = o3d.utility.Vector3dVector(priorTexcoords)
 		
@@ -391,7 +501,7 @@ while True:
 		
 		#print(verts.shape)
 		
-		transform = coloredPointCloudRegistration(pcdTest, priorPointCloud)
+		#transform = coloredPointCloudRegistration(pcdTest, priorPointCloud)
 		#print(transform)
 
 	#Registration requires o3d pointcloud object. need to convert np ndarrays
@@ -433,14 +543,14 @@ while True:
 	#cv2.imshow(state.WIN_NAME, out)
 	#key = cv2.waitKey(1)
 	
-	o3d.visualization.draw_geometries([pcdTest])
+	o3d.visualization.draw_geometries([pcd])
 	key = cv2.waitKey(1)
 	
 	#input current pointcloud into old pointcloud
 	#priorPoints = points
 	#priorVerts = verts
 	#priorTexcoords = colorsTest
-	priorPointCloud = pcdTest
+	pcdPrior = pcd
 	notFirstIteration = True
 	
 pipeline.stop()
