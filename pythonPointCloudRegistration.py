@@ -258,6 +258,13 @@ def draw_registration_result_original_color(source, target, transformation):
 	source_temp = copy.deepcopy(source)
 	source_temp.transform(transformation)
 	o3d.visualization.draw_geometries([source_temp, target], zoom=0.5, front=[-0.2458, -0.8088, 0.5342], lookat=[1.7745, 2.2305, 0.9787], up=[0.3109, -0.5878, -0.7468])
+def pointCloudRegistration(source, target):
+	threshold = 10
+	current_transformation = np.identity(4)
+	result_icp = o3d.pipelines.registration.evaluate_registration(source, target, threshold, current_transformation)
+	print(result_icp)
+	current_transformation = result_icp.transformation
+	return current_transformation
 
 def coloredPointCloudRegistration(source, target):
 	voxel_radius = [0.04, 0.02, 0.01]
@@ -307,9 +314,9 @@ while True:
 		depth_frame = frames.get_depth_frame()
 		color_frame = frames.get_color_frame()
 		
-		print("color_frame")
-		print(type(color_frame))
-		print(dir(color_frame))
+		#print("color_frame")
+		#print(type(color_frame))
+		#print(dir(color_frame))
 
 		depth_frame = decimate.process(depth_frame)
 
@@ -336,37 +343,37 @@ while True:
 		verts = np.asanyarray(v).view(np.float32).reshape(-1, 3)  # xyz
 		texcoords = np.asanyarray(t).view(np.float32).reshape(-1, 2)  # uv
 		
-		print("verticies")
-		print(verts.shape)
+		#print("verticies")
+		#print(verts.shape)
 		
-		print("color_image")
-		print(color_image.shape)
+		#print("color_image")
+		#print(color_image.shape)
 		#print(color_image)
 		
-		print("color_source")
-		print(color_source.shape)
+		#print("color_source")
+		#print(color_source.shape)
 		
-		print("points")
-		print(points.size())
+		#print("points")
+		#print(points.size())
 		
-		print("depth_colormap")
-		print(depth_colormap.shape)
+		#print("depth_colormap")
+		#print(depth_colormap.shape)
 		
-		print("state.color")
-		print(state.color)
+		#print("state.color")
+		#print(state.color)
 		
-		print("color_frame")
-		print(color_frame)
+		#print("color_frame")
+		#print(color_frame)
 		
-		print("depth_image")
-		print(depth_image.shape)
+		#print("depth_image")
+		#print(depth_image.shape)
 		
-		print("color_image")
-		print(color_image.shape)
-		print(color_image[0][0])
+		#print("color_image")
+		#print(color_image.shape)
+		#print(color_image[0][0])
 		
-		print("texcoords")
-		print(texcoords.shape)
+		#print("texcoords")
+		#print(texcoords.shape)
 		#for t in texcoords:
 		#	print(texcoords.argmax())
 		#	print(texcoords.argmin())
@@ -376,16 +383,16 @@ while True:
 		
 		#ok, so color_image looks suspiciously like a numpy array cast of the color frame which seems to contain the texture data. I'm going to try and normalize the texture coordinates to work with it and see where that goes. https://github.com/IntelRealSense/librealsense/issues/6234 this maps from texture coordinates to color frame
 		colorsRGB = np.zeros((len(texcoords), 3))
-		print("colorsRGB: " + str(colorsRGB.shape))
-		idx = np.zeros(len(verts))
+		#print("colorsRGB: " + str(colorsRGB.shape))
+		#idx = np.zeros(len(verts))
 		#print()
 		w = color_image.shape[1] #480
 		h = color_image.shape[0] #640
-		print("w: " + str(w))
-		print("h: " + str(h))
-		color_array = color_image.flatten()/255
+		#print("w: " + str(w))
+		#print("h: " + str(h))
+		#color_array = color_image.flatten()/255
 		color_image = color_image/255
-		print("color_array length: " + str(len(color_array)))
+		#print("color_array length: " + str(len(color_array)))
 		for i, t in enumerate(verts):
 			#coordX = np.rint(t[0] * color_image.shape[0])
 			#coordY = np.rint(t[1] * color_image.shape[1])
@@ -425,15 +432,15 @@ while True:
 			#np.concatenate([color_image.flatten()[colorLocation], color_image.flatten()[colorLocation + 1], color_image.flatten()[colorLocation + 2]], colorsRGB)
 		#print("idx max: " + str(idx.max())) #1227059
 		#print("idx max indicy? " + str(idx[int(idx.max())]))
-		print("i: " + str(i))
-		print("colorRGB shape:")
-		print(colorsRGB.shape)
-		print(colorsRGB[i])
-		print("color_array max: " + str(color_array.max()))
-		print("color_array min: " + str(color_array.min()))
-		print("color_array mean: " + str(color_array.mean()))
-		print("texcoords.shape:")
-		print(texcoords.shape)
+		#print("i: " + str(i))
+		#print("colorRGB shape:")
+		#print(colorsRGB.shape)
+		#print(colorsRGB[i])
+		#print("color_array max: " + str(color_array.max()))
+		#print("color_array min: " + str(color_array.min()))
+		#print("color_array mean: " + str(color_array.mean()))
+		#print("texcoords.shape:")
+		#print(texcoords.shape)
 		
 		
 		#mapped frame looks to be the texture based on
@@ -487,10 +494,17 @@ while True:
 	#add prior verts to current verts
 	#if priorVerts.any():
 	
+	#apparently o3d might be able to take in depth and uv map directly according to function create_from_rgbd_image
+	#http://www.open3d.org/docs/release/python_api/open3d.geometry.PointCloud.html
 	pcd.points = o3d.utility.Vector3dVector(verts)
 	pcd.colors = o3d.utility.Vector3dVector(colorsRGB)
 	
-	#if notFirstIteration:
+	#for some reason, icp functions will not work. Apparently I can change things like voxel downsample and radius outliers and have some kind of effect in the pointcloud?
+	pcd = pcd.voxel_down_sample(0.0000001)
+	#print(dir(pcd))
+	#pcd.remove_radius_outlier(5,30)
+	
+	if notFirstIteration:
 		#pcd.points = o3d.utility.Vector3dVector(verts)
 		#pcd.colors = o3d.utility.Vector3dVector(colorsRGB)
 		#pcdPrior.points = o3d.utility.Vector3dVector(priorVerts)
@@ -501,8 +515,12 @@ while True:
 		
 		#print(verts.shape)
 		
-		#transform = coloredPointCloudRegistration(pcdTest, priorPointCloud)
-		#print(transform)
+		transform = coloredPointCloudRegistration(pcd, pcdPrior)
+		print("colored icp")
+		print(transform)
+		transform = pointCloudRegistration(pcd, pcdPrior)
+		print("icp")
+		print(transform)
 
 	#Registration requires o3d pointcloud object. need to convert np ndarrays
 	#steps
