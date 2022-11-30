@@ -247,6 +247,11 @@ def pointcloud(out, verts, texcoords, color, painter=True):
     out[i[m], j[m]] = color[u[m], v[m]]
 
 def concatPointCloud(cloud1, cloud2):
+
+	#o3d.visualization.draw_geometries([cloud1])
+	#o3d.visualization.draw_geometries([cloud2])
+	#print(cloud2.has_colors())
+
 	cloud1Points = np.asarray(cloud1.points)
 	cloud2Points = np.asarray(cloud2.points)
 	
@@ -337,6 +342,7 @@ threshold = 0.2
 #threshold = 2
 #for i in range(1):
 notFirstIteration = False
+frame = 0
 while True:
 	#time.sleep(5)
 	if not state.paused:
@@ -426,6 +432,9 @@ while True:
 		color_image = color_image/255
 		#print("color_array length: " + str(len(color_array)))
 		for i, t in enumerate(verts):
+			x = min(max(int(texcoords[i][0]*w + 0.5),0),w - 1)
+			y = min(max(int(texcoords[i][1]*h + 0.5),0),h - 1)
+			colorsRGB[i] = color_image[y][x]
 			#coordX = np.rint(t[0] * color_image.shape[0])
 			#coordY = np.rint(t[1] * color_image.shape[1])
 			#colorLocation = int(coordY * color_image.shape[1] + coordX)
@@ -435,9 +444,9 @@ while True:
 			#print("texcoords y: " + str(texcoords[i][1]))
 			#print("texcoords: " + str(texcoords[i]))
 			
-			x = min(max(int(texcoords[i][0]*w + 0.5),0),w - 1)
+
 			#print("x: " + str(x))
-			y = min(max(int(texcoords[i][1]*h + 0.5),0),h - 1)
+
 			#print("y: " + str(y))
 			#print("bytes per pixel: " + str(color_frame.get_bytes_per_pixel()))
 			#print("stride in bytes: " + str(color_frame.get_stride_in_bytes()))
@@ -448,7 +457,7 @@ while True:
 			#print(idx) #921620
 			
 			#colorsRGB[i] = [color_array[idx], color_array[idx + 1], color_array[idx + 2]]
-			colorsRGB[i] = color_image[y][x]
+
 			#print("coordX: " + str(coordX))
 			#print("coordY: " + str(coordY))
 			#colorLocation = int(coordY * color_image.shape[1] + coordX)
@@ -538,7 +547,8 @@ while True:
 	#print("pcd max bound: " + str(pcd.get_max_bound()))
 	#pcd.remove_radius_outlier(5,1)
 	
-	if notFirstIteration:
+	#if notFirstIteration:
+	if frame >= 2:
 		#pcd.points = o3d.utility.Vector3dVector(verts)
 		#pcd.colors = o3d.utility.Vector3dVector(colorsRGB)
 		#pcdPrior.points = o3d.utility.Vector3dVector(priorVerts)
@@ -558,10 +568,13 @@ while True:
 		
 		pcd.transform(transform)
 		pcd = concatPointCloud(pcd, pcdPrior)
+		
+		#small pointcloud downsampling for merging and pruning for error voxels
 		pcd = pcd.voxel_down_sample(0.00001)
+		pcd = pcd.remove_radius_outlier(nb_points=20, radius=0.05)[0]
 		#draw_registration_result(pcd, pcdPrior, transform)
 		o3d.visualization.draw_geometries([pcd])
-		#o3d.visualization.draw_geometries([pcd])
+		#o3d.visualization.draw_geometries([pcdnew])
 		#o3d.visualization.draw_geometries([pcdPrior])
 		
 		
@@ -643,7 +656,8 @@ while True:
 
 	
 	pcdPrior = copy.deepcopy(pcd)
-	notFirstIteration = True
+	#notFirstIteration = True
+	frame = frame + 1
 	
 pipeline.stop()
 	
