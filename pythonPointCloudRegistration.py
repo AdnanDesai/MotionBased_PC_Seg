@@ -5,6 +5,7 @@ import numpy as np
 import pyrealsense2 as rs
 import sys
 import open3d as o3d
+import copy
 
 class AppState:
 
@@ -245,6 +246,21 @@ def pointcloud(out, verts, texcoords, color, painter=True):
     # perform uv-mapping
     out[i[m], j[m]] = color[u[m], v[m]]
 
+def concatPointCloud(cloud1, cloud2):
+	cloud1Points = np.asarray(cloud1.points)
+	cloud2Points = np.asarray(cloud2.points)
+	
+	cloud1Colors = np.asarray(cloud1.colors)
+	cloud2Colors = np.asarray(cloud2.colors)
+	
+	cloud3Points = np.concatenate((cloud1Points, cloud2Points))
+	cloud3Colors = np.concatenate((cloud1Colors, cloud2Colors))
+	
+	cloud3 = o3d.geometry.PointCloud()
+	cloud3.points = o3d.utility.Vector3dVector(cloud3Points)
+	cloud3.colors = o3d.utility.Vector3dVector(cloud3Colors)
+	return cloud3
+
 def draw_registration_result_original_color(source, target, transformation):
     source_temp = copy.deepcopy(source)
     source_temp.transform(transformation)
@@ -266,8 +282,23 @@ def pointCloudRegistration(source, target):
 	current_transformation = result_icp.transformation
 	return current_transformation
 
+def draw_registration_result(source, target, transformation):
+    source_temp = copy.deepcopy(source)
+    target_temp = copy.deepcopy(target)
+    source_temp.paint_uniform_color([1, 0.706, 0])
+    target_temp.paint_uniform_color([0, 0.651, 0.929])
+    source_temp.transform(transformation)
+    o3d.visualization.draw_geometries([source_temp, target_temp],
+                                      zoom=0.4459,
+                                      front=[0.9288, -0.2951, -0.2242],
+                                      lookat=[1.6784, 2.0612, 1.4451],
+                                      up=[-0.3402, -0.9189, -0.1996])
+
 def coloredPointCloudRegistration(source, target):
-	voxel_radius = [0.04, 0.02, 0.01]
+	#voxel_radius = [0.04, 0.02, 0.01]
+	#max_iter = [50, 30, 14]
+	#max_iter = [1, 1, 1]
+	voxel_radius = [0.5, 0.25, 0.125]
 	max_iter = [50, 30, 14]
 	current_transformation = np.identity(4)
 	for scale in range(3):
@@ -302,7 +333,8 @@ colors = np.array([])
 transform = np.identity(4)
 pcd = o3d.geometry.PointCloud()
 pcdPrior = o3d.geometry.PointCloud()
-
+threshold = 0.2
+#threshold = 2
 #for i in range(1):
 notFirstIteration = False
 while True:
@@ -500,9 +532,11 @@ while True:
 	pcd.colors = o3d.utility.Vector3dVector(colorsRGB)
 	
 	#for some reason, icp functions will not work. Apparently I can change things like voxel downsample and radius outliers and have some kind of effect in the pointcloud?
-	pcd = pcd.voxel_down_sample(0.0000001)
+	#pcd = pcd.voxel_down_sample(0.0000001)
 	#print(dir(pcd))
-	#pcd.remove_radius_outlier(5,30)
+	#print("pcd min bound: " + str(pcd.get_min_bound()))
+	#print("pcd max bound: " + str(pcd.get_max_bound()))
+	#pcd.remove_radius_outlier(5,1)
 	
 	if notFirstIteration:
 		#pcd.points = o3d.utility.Vector3dVector(verts)
@@ -515,12 +549,28 @@ while True:
 		
 		#print(verts.shape)
 		
-		transform = coloredPointCloudRegistration(pcd, pcdPrior)
-		print("colored icp")
+		#result = o3d.pipelines.registration.registration_icp(pcd, pcdPrior, threshold, transform,o3d.pipelines.registration.TransformationEstimationPointToPoint(),o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=2000))
+		
+		result = o3d.pipelines.registration.registration_icp(pcd, pcdPrior, threshold, transform,o3d.pipelines.registration.TransformationEstimationPointToPoint(),o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=2000))
+		
+		transform = result.transformation
 		print(transform)
-		transform = pointCloudRegistration(pcd, pcdPrior)
-		print("icp")
-		print(transform)
+		
+		pcd.transform(transform)
+		pcd = concatPointCloud(pcd, pcdPrior)
+		pcd = pcd.voxel_down_sample(0.00001)
+		#draw_registration_result(pcd, pcdPrior, transform)
+		o3d.visualization.draw_geometries([pcd])
+		#o3d.visualization.draw_geometries([pcd])
+		#o3d.visualization.draw_geometries([pcdPrior])
+		
+		
+		#transform = coloredPointCloudRegistration(pcd, pcdPrior)
+		#print("colored icp")
+		#print(transform)
+		#transform = pointCloudRegistration(pcd, pcdPrior)
+		#print("icp")
+		#print(transform)
 
 	#Registration requires o3d pointcloud object. need to convert np ndarrays
 	#steps
@@ -561,14 +611,38 @@ while True:
 	#cv2.imshow(state.WIN_NAME, out)
 	#key = cv2.waitKey(1)
 	
-	o3d.visualization.draw_geometries([pcd])
-	key = cv2.waitKey(1)
+	#o3d.visualization.draw_geometries([pcd])
+	#key = cv2.waitKey(1)
 	
 	#input current pointcloud into old pointcloud
 	#priorPoints = points
 	#priorVerts = verts
 	#priorTexcoords = colorsTest
-	pcdPrior = pcd
+	
+	#after running demo, turns out icp needs original point cloud to be close to new cloud. Theshold controls how precise this is. It was being made up for by the trans_init matrix they gave. With an identity matrix, we can see how far away this icp method works. threshold had to be raised to 0.2. Lets see if it will work on my point clouds in similar conditions.
+	
+	#demo_icp_pcds = o3d.data.DemoICPPointClouds()
+	#source = o3d.io.read_point_cloud(demo_icp_pcds.paths[0])
+	#target = o3d.io.read_point_cloud(demo_icp_pcds.paths[1])
+	
+	#print("source min bound: " + str(source.get_min_bound()))
+	#print("source max bound: " + str(source.get_max_bound()))
+	
+	#threshold = 0.2
+	#trans_init = np.asarray([[0.862, 0.011, -0.507, 0.5],
+        #                 [-0.139, 0.967, -0.215, 0.7],
+        #                 [0.487, 0.255, 0.835, -1.4], [0.0, 0.0, 0.0, 1.0]])
+	#trans_init = np.identity(4)
+	#reg_p2p = o3d.pipelines.registration.registration_icp(source, target, threshold, trans_init,o3d.pipelines.registration.TransformationEstimationPointToPoint(),o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=2000))
+	
+	#reg_p2p = o3d.pipelines.registration(np.identity(4))
+	#iden = np.identity(4)
+	
+	#draw_registration_result(source, target, reg_p2p.transformation)
+
+
+	
+	pcdPrior = copy.deepcopy(pcd)
 	notFirstIteration = True
 	
 pipeline.stop()
